@@ -1,5 +1,6 @@
 __author__ = 'nulysse'
 
+import os
 import ConfigParser
 from twisted.internet import protocol, reactor, defer
 from Tkinter import *
@@ -10,6 +11,7 @@ tksupport.install(root)
 
 _SimHostListenPort = 6007
 _GUI_send_port = 7000
+_received_message_directory = 'replies'
 
 
 class TestMessages(object):
@@ -29,6 +31,9 @@ class TestMessages(object):
 
 
 class RemoteDebuggerGUI(protocol.DatagramProtocol):
+    """
+    This class used Twisted for UDP send/receive
+    """
 
     rcv_msg_index = 0
 
@@ -36,8 +41,12 @@ class RemoteDebuggerGUI(protocol.DatagramProtocol):
         self.receivedMsgList = receivedMsgList
 
     def datagramReceived(self, data, (host, port)):
-        fileName = 'reply{!s}'.format(self.rcv_msg_index)
-        self.receivedMsgList.insert(0, "Received Message {!s}".format(fileName))
+        fileName = os.path.join(_received_message_directory,'reply{!s}'.format(self.rcv_msg_index))
+        self.receivedMsgList.insert(END, "Received Message {!s}: content stored in {!s}\n".format(self.rcv_msg_index, fileName))
+
+        if not os.path.isdir(_received_message_directory):
+            os.makedirs(_received_message_directory)
+
         with open(fileName, 'wb') as msgData:
                 msgData.write(data)
 
@@ -45,6 +54,9 @@ class RemoteDebuggerGUI(protocol.DatagramProtocol):
 
     def write(self, data, host, port):
         self.transport.write(data, (host, port))
+
+    def reset_msg_count(self):
+        self.rcv_msg_index = 0
 
 
 class TesterFrame(Frame):
@@ -60,32 +72,41 @@ class TesterFrame(Frame):
         #---------------------------------------------------------------------------#
         # Initialize Buttons Handles
         #---------------------------------------------------------------------------#
-        frame = Frame(self)
-        frame.pack(side=BOTTOM, pady=5)
 
-        self.availablemessagelistbox = Listbox(master)
-        self.availablemessagelistbox.pack(side=LEFT, padx=15, fill="both", expand=True)
+        frame = Frame(self,  bg='green')
+        frame.grid(row=0, column=0, sticky="w")
+
+        self.availablemessagelistbox = Listbox(frame)
+        self.availablemessagelistbox.config(width=50)
+        self.availablemessagelistbox .grid(row=0, column=0, columnspan=2, padx=2,sticky=N+S+E+W)
 
         for request in testMessages.request_list:
             self.availablemessagelistbox.insert(END, request)
 
-        self.selectedmessagelistbox = Listbox(master)
-        self.selectedmessagelistbox.pack(side=LEFT, padx=15, fill="both", expand=True)
+        self.selectedmessagelistbox = Listbox(frame)
+        self.selectedmessagelistbox.config(width=50)
+        self.selectedmessagelistbox .grid(row=0, column=2, padx=2,sticky=N+S+E+W)
 
         self.sendButton = Button(frame, text="send", command=self.send_clicked, font=font)
-        self.sendButton.pack(side=BOTTOM, padx=15)
+        self.sendButton .grid(row=1, column=0, padx=2)
 
         self.addButton = Button(frame, text="add", command=self.add_message_to_send, font=font)
-        self.addButton.pack(side=BOTTOM, padx=15)
+        self.addButton .grid(row=1, column=1, padx=2)
 
-        self.receivedMsg = Entry(master)
-        self.receivedMsg.pack(side=BOTTOM, padx=15, fill="both", expand=True)
+        self.clear = Button(frame, text="clear", command=self.clear, font=font)
+        self.clear .grid(row=1, column=2, padx=2)
 
-
+        self.receivedMsg = Text(frame, height=20,)
+        self.receivedMsg .grid(row=2, column=0, columnspan=3, padx=2,sticky=N+S+E+W)
 
         self.guiEmulator = RemoteDebuggerGUI(self.receivedMsg)
         reactor.listenUDP(_SimHostListenPort, self.guiEmulator)
 
+
+    def clear(self):
+        self.selectedmessagelistbox.delete(0,END)
+        self.receivedMsg.delete("1.0",END)
+        self.guiEmulator .reset_msg_count()
 
     def add_message_to_send(self):
         indexes = self.availablemessagelistbox.curselection()
@@ -112,9 +133,9 @@ class TesterApplication(object):
 
         :param master: The master window to connect to
         '''
-        font = ('Helvetica', 12, 'normal')
+        font = ('Helvetica', 10, 'normal')
         frame = TesterFrame(master, font, testMessages)
-        frame.pack()
+        frame.pack(side="top", fill="both", expand=True)
 
     def on_closing(self):
         ''' Callback for close button '''

@@ -49,7 +49,7 @@ if __name__ == '__main__':
     GUIListener.start(listening_port, 'SimHostListen')
 
     while True:
-        c = raw_input('type a character (letter will be sent as OIS Key board, number as KCCU): ')
+        raw_input("Press a key to send a message...")
 
         Sendsocket.sendto("Hello", ('127.0.0.1', 6007))
 
