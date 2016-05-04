@@ -30,12 +30,18 @@ class TestMessages(object):
 
 class RemoteDebuggerGUI(protocol.DatagramProtocol):
 
+    rcv_msg_index = 0
+
     def __init__(self, receivedMsgList):
         self.receivedMsgList = receivedMsgList
 
     def datagramReceived(self, data, (host, port)):
-        print "received %r from %s:%d" % (data, host, port)
-        self.receivedMsgList.insert(0, "Received Message")
+        fileName = 'reply{!s}'.format(self.rcv_msg_index)
+        self.receivedMsgList.insert(0, "Received Message {!s}".format(fileName))
+        with open(fileName, 'wb') as msgData:
+                msgData.write(data)
+
+        self.rcv_msg_index +=1
 
     def write(self, data, host, port):
         self.transport.write(data, (host, port))
